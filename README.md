@@ -101,6 +101,7 @@ App runs on:
 
 ## 📂 Project Structure
 
+```bash
 flashcard-engine/
 │
 ├── app/                # Next.js App Router pages
@@ -126,6 +127,7 @@ flashcard-engine/
 │
 ├── globals.css         # Global styles
 └── README.md
+```
 
 ---
 
