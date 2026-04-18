@@ -82,15 +82,72 @@ Clone the project:
 ```bash
 git clone https://github.com/YOUR_USERNAME/flashcard-engine.git
 cd flashcard-engine
+```
 
 Install Dependencies:
 ```bash
 npm install
+```
 
 Start the development server:
 ```bash
 npm run dev
+```
 
 App runs on:
 👉 http://localhost:3000
+
+---
+
+## 📂 Project Structure
+
+flashcard-engine/
+│
+├── app/                # Next.js App Router pages
+│   ├── page.tsx        # Dashboard
+│   ├── upload/         # Upload flow
+│   ├── deck/           # Deck & practice pages
+│
+├── components/         # UI components
+│   ├── DeckCard.tsx
+│   ├── UploadZone.tsx
+│   ├── FlashCard.tsx
+│   ├── RatingButtons.tsx
+│   ├── StatsPanel.tsx
+│   ├── Sidebar.tsx
+│   └── ThemeToggle.tsx
+│
+├── lib/                # Core logic
+│   ├── storage.ts      # Local storage handling
+│   ├── sm2.ts          # Spaced repetition algorithm
+│   ├── types.ts        # Types
+│
+├── public/             # Static assets
+│
+├── globals.css         # Global styles
+└── README.md
+
+---
+
+## 🧠 How It Works
+
+- 📄 Upload a PDF  
+- ⚡ Generate flashcards  
+- 🧠 Practice with spaced repetition  
+- 📈 Track progress over time  
+
+---
+
+## 🔥 Future Improvements
+
+- 📄 Real PDF preview (react-pdf)  
+- 🔍 Search & filter decks  
+- 📊 Advanced analytics dashboard  
+- 🔔 Study reminders  
+- 🤖 AI summarization & quiz generation  
+- 📱 Improved mobile UX  
+
+---
+
+
 
