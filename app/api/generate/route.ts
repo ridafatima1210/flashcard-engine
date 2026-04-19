@@ -1,101 +1,156 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// ✅ Safe JSON parser
+function safeParseJSON(text: string) {
+  try {
+    const cleaned = text
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .replace(/[\u0000-\u001F]/g, '')
+      .trim();
+
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+// ✅ Split large text
+function splitText(text: string, chunkSize = 12000) {
+  const chunks = [];
+  for (let i = 0; i < text.length; i += chunkSize) {
+    chunks.push(text.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+// ✅ Remove duplicate cards
+function dedupeCards(cards: any[]) {
+  const seen = new Set();
+  return cards.filter(c => {
+    const key = c.front.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: 'OPENAI_API_KEY is not configured on the server.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'OPENAI_API_KEY not configured' },
+      { status: 500 }
+    );
   }
+
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
-    const body = await req.json();
-    const { text, filename } = body;
+    const { text, filename } = await req.json();
 
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Missing text' }, { status: 400 });
-    }
-    if (text.trim().length < 100) {
-      return NextResponse.json({ error: 'Text too short to generate cards' }, { status: 400 });
-    }
-    if (text.length > 60000) {
-      return NextResponse.json({ error: 'Text too long' }, { status: 400 });
+    if (!text || text.length < 100) {
+      return NextResponse.json(
+        { error: 'Text too short' },
+        { status: 400 }
+      );
     }
 
-    const systemPrompt = `You are an expert educator and flashcard designer.
-Your job is to create high-quality flashcards from educational text.
+    const systemPrompt = `
+You are an expert educator.
 
-Rules for great flashcards:
-- Each card tests ONE specific concept, fact, or relationship
-- Front: a clear question, prompt, or term — never vague
-- Back: a concise, complete answer. Include examples where helpful
-- Cover: key definitions, important facts, cause-effect relationships, worked examples, edge cases
-- Do NOT create trivial or redundant cards
-- Do NOT create cards about page numbers, headings, or metadata
-- Aim for 15–25 cards for short texts, 25–40 for longer texts
-- hint: one short phrase that jogs memory without giving away the answer (optional, omit if not useful)
+Generate HIGH QUALITY flashcards.
 
-Respond ONLY with valid JSON in this exact format, no markdown, no explanation:
+Types of cards:
+1. Definition cards
+2. Concept understanding
+3. Example-based questions
+4. Cause-effect relationships
+
+Rules:
+- One concept per card
+- Clear question (front)
+- Concise answer (back)
+- Avoid duplicates
+- Cover full topic
+
+STRICT:
+Return ONLY valid JSON
+
+FORMAT:
 {
   "cards": [
-    { "front": "...", "back": "...", "hint": "..." },
-    ...
+    { "front": "...", "back": "...", "hint": "..." }
   ]
-}`;
+}
+`;
 
-    const userPrompt = `Generate flashcards from this educational content titled "${filename ?? 'Document'}":\n\n${text}`;
+    const chunks = splitText(text);
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.4,
-      max_tokens: 4000,
-    });
+    // 🔥 Parallel processing (FAST)
+    const responses = await Promise.all(
+      chunks.map(async chunk => {
+        try {
+          const res = await client.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              {
+                role: 'user',
+                content: `Create flashcards from:\n\n${chunk}`,
+              },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            max_tokens: 2000,
+          });
 
-    const raw = response.choices[0]?.message?.content;
-    if (!raw) {
-      return NextResponse.json({ error: 'Empty response from AI' }, { status: 502 });
-    }
+          return safeParseJSON(res.choices[0]?.message?.content || '');
+        } catch {
+          return null;
+        }
+      })
+    );
 
-    let parsed: { cards: Array<{ front: string; back: string; hint?: string }> };
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 502 });
-    }
+    // 🔄 Combine
+    let allCards = responses
+      .filter(r => r?.cards)
+      .flatMap(r => r.cards);
 
-    if (!Array.isArray(parsed.cards) || parsed.cards.length === 0) {
-      return NextResponse.json({ error: 'No cards generated' }, { status: 502 });
-    }
+    // 🧹 Clean
+    allCards = dedupeCards(allCards);
 
-    const cards = parsed.cards
+    const cards = allCards
       .filter(c => c.front && c.back)
       .map(c => ({
         front: String(c.front).slice(0, 300),
         back: String(c.back).slice(0, 600),
         ...(c.hint ? { hint: String(c.hint).slice(0, 150) } : {}),
-      }));
+      }))
+      .slice(0, 50);
 
     if (cards.length === 0) {
-      return NextResponse.json({ error: 'No valid cards after sanitisation' }, { status: 502 });
+      return NextResponse.json(
+        { error: 'No valid cards generated' },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({ cards });
-  } catch (err: unknown) {
-    console.error('[/api/generate]', err);
-    const anyErr = err as { status?: number };
-    if (anyErr?.status === 429) {
+
+  } catch (err: any) {
+    console.error(err);
+
+    if (err?.status === 429) {
       return NextResponse.json(
-        { error: 'OpenAI rate limit hit. Wait a minute and retry.' },
+        { error: 'Rate limit hit. Try again.' },
         { status: 429 }
       );
     }
-    if (anyErr?.status === 401) {
-      return NextResponse.json({ error: 'Invalid OpenAI API key.' }, { status: 401 });
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json(
+      { error: 'Server error' },
+      { status: 500 }
+    );
   }
 }

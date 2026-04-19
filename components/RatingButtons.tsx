@@ -9,25 +9,34 @@ interface RatingButtonsProps {
   isLoading?: boolean;
 }
 
-/* ✅ Proper typing FIX */
 const BUTTONS: {
   label: string;
   rating: Rating;
   color: string;
   key: string;
+  highlight?: boolean;
 }[] = [
   { label: 'Again', rating: 0, color: 'from-red-500 to-red-600', key: '1' },
   { label: 'Hard',  rating: 1, color: 'from-orange-500 to-orange-600', key: '2' },
-  { label: 'Good',  rating: 2, color: 'from-green-500 to-green-600', key: '3' },
+  { label: 'Good',  rating: 2, color: 'from-green-500 to-green-600', key: '3', highlight: true }, // 🔥 recommended
   { label: 'Easy',  rating: 3, color: 'from-blue-500 to-blue-600', key: '4' },
 ];
 
 export default function RatingButtons({ onRate, isLoading }: RatingButtonsProps) {
 
-  /* ⌨️ Keyboard shortcuts */
+  /* ⌨️ Keyboard shortcuts (improved) */
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (isLoading) return;
+
+      // Prevent repeat firing
+      if (e.repeat) return;
+
+      // Enter = Good (default action)
+      if (e.key === 'Enter') {
+        onRate(2);
+        return;
+      }
 
       const btn = BUTTONS.find(b => b.key === e.key);
       if (btn) {
@@ -48,7 +57,6 @@ export default function RatingButtons({ onRate, isLoading }: RatingButtonsProps)
           disabled={isLoading}
           onClick={() => onRate(b.rating)}
 
-          /* 🎬 Animation */
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05 }}
@@ -63,13 +71,17 @@ export default function RatingButtons({ onRate, isLoading }: RatingButtonsProps)
             shadow-md hover:shadow-xl
             transition-all duration-300
             disabled:opacity-50 disabled:cursor-not-allowed
+
+            focus:outline-none focus:ring-2 focus:ring-white/40
+
+            ${b.highlight ? 'ring-2 ring-green-300/40' : ''}
           `}
         >
 
-          {/* ✨ Hover Glow */}
+          {/* ✨ Glow */}
           <div className="absolute inset-0 opacity-0 hover:opacity-100 transition bg-white/10"></div>
 
-          {/* 🧠 Content */}
+          {/* Content */}
           <div className="relative z-10 flex flex-col items-center">
             <span>{b.label}</span>
             <span className="text-xs opacity-70">[{b.key}]</span>

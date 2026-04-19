@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { getDeckById, getDeckStats, deleteDeck } from '@/lib/storage';
 import { Deck, Flashcard } from '@/lib/types';
 import StatsPanel from '@/components/StatsPanel';
@@ -22,23 +23,37 @@ function CardRow({ card }: { card: Flashcard }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border border-gray-100 rounded-xl bg-white overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl border border-white/30 dark:border-gray-700 overflow-hidden shadow-sm"
+    >
       <button
-        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-white/40 dark:hover:bg-gray-800 transition"
         onClick={() => setExpanded(v => !v)}
       >
-        <span className="text-sm font-medium text-gray-800 line-clamp-2">{card.front}</span>
-        <span className="text-xs text-gray-400 ml-4 shrink-0">{dueDateLabel(card.dueDate)}</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-white line-clamp-2">
+          {card.front}
+        </span>
+        <span className="text-xs text-gray-400 ml-4 shrink-0">
+          {dueDateLabel(card.dueDate)}
+        </span>
       </button>
+
       {expanded && (
-        <div className="px-4 pb-3 border-t border-gray-100">
-          <p className="text-sm text-gray-600 mt-2">{card.back}</p>
+        <div className="px-4 pb-3 border-t border-gray-100 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+            {card.back}
+          </p>
+
           {card.hint && (
-            <p className="text-xs text-indigo-400 mt-1 italic">Hint: {card.hint}</p>
+            <p className="text-xs text-indigo-400 mt-1 italic">
+              Hint: {card.hint}
+            </p>
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -53,12 +68,12 @@ export default function DeckDetailPage() {
     setDeck(getDeckById(deckId));
   }, [deckId]);
 
-  if (deck === undefined) return null; // loading
+  if (deck === undefined) return null;
 
   if (!deck) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <p className="text-gray-500 mb-4">Deck not found. It may have been deleted.</p>
+        <p className="text-gray-500 mb-4">Deck not found.</p>
         <Link href="/" className="text-indigo-600 hover:underline font-medium">
           Back to Home
         </Link>
@@ -75,50 +90,76 @@ export default function DeckDetailPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-3 mb-8">
-        <Link href="/" className="text-gray-400 hover:text-gray-600 transition-colors">
-          ← Home
-        </Link>
-      </div>
+    <div className="max-w-3xl mx-auto px-4 py-8">
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{deck.name}</h1>
+      {/* 🔙 Breadcrumb */}
+      <Link href="/" className="text-gray-400 hover:text-gray-600 mb-6 inline-block">
+        ← Back
+      </Link>
 
-      <StatsPanel stats={stats} />
+      {/* 🔥 Header */}
+      <div className="flex justify-between items-start mb-6">
 
-      <div className="mt-6">
-        <ProgressBar value={stats.mastered} max={stats.total} label="Mastered" />
-      </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {deck.name}
+          </h1>
 
-      {/* Actions */}
-      <div className="flex gap-3 mt-6">
-        <Link
-          href={stats.due > 0 ? `/deck/${deck.id}/practice` : '#'}
-          className={`flex-1 text-center font-semibold py-3 rounded-xl transition-colors ${
-            stats.due > 0
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed pointer-events-none'
-          }`}
-          aria-disabled={stats.due === 0}
-        >
-          Practice ({stats.due} due)
-        </Link>
+          <p className="text-sm text-gray-400 mt-1">
+            {deck.cards.length} cards
+          </p>
+        </div>
+
         <button
           onClick={handleDelete}
-          className="px-4 py-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors font-medium"
+          className="text-red-500 text-sm hover:underline"
         >
           Delete
         </button>
       </div>
 
-      {/* Card list */}
+      {/* 📊 Stats */}
+      <StatsPanel stats={stats} />
+
+      {/* 📈 Progress */}
+      <div className="mt-6">
+        <ProgressBar
+          value={stats.mastered}
+          max={stats.total}
+          label="Mastery"
+        />
+      </div>
+
+      {/* 🎯 CTA */}
+      <motion.div
+        whileHover={{ scale: stats.due > 0 ? 1.03 : 1 }}
+        className="mt-6"
+      >
+        <Link
+          href={stats.due > 0 ? `/deck/${deck.id}/practice` : '#'}
+          className={`
+            block text-center font-semibold py-3 rounded-xl
+            ${
+              stats.due > 0
+                ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-lg'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed pointer-events-none'
+            }
+          `}
+        >
+          {stats.due > 0
+            ? `🔥 Practice (${stats.due} due)`
+            : 'No cards due'}
+        </Link>
+      </motion.div>
+
+      {/* 📄 Cards */}
       {deck.cards.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        <div className="mt-10">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase mb-3">
             Cards ({deck.cards.length})
           </h2>
-          <div className="flex flex-col gap-2">
+
+          <div className="flex flex-col gap-3">
             {deck.cards.map(card => (
               <CardRow key={card.id} card={card} />
             ))}

@@ -21,25 +21,34 @@ function SessionComplete({
   onPracticeAgain: () => void;
 }) {
   const stats = getDeckStats(deck);
+
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-      <div className="text-6xl" aria-hidden="true">🎉</div>
-      <h2 className="text-2xl font-bold text-gray-900">Session complete!</h2>
-      <p className="text-gray-500">You reviewed {reviewed} card{reviewed !== 1 ? 's' : ''}</p>
+      <div className="text-6xl">🎉</div>
+      <h2 className="text-2xl font-bold">Session complete!</h2>
+      <p className="text-gray-500">
+        You reviewed {reviewed} card{reviewed !== 1 ? 's' : ''}
+      </p>
+
       <div className="flex gap-6 text-sm mt-2">
-        <span className="text-green-600 font-medium">{stats.mastered} mastered</span>
-        <span className="text-orange-500 font-medium">{stats.learning} still learning</span>
+        <span className="text-green-600 font-medium">
+          {stats.mastered} mastered
+        </span>
+        <span className="text-orange-500 font-medium">
+          {stats.learning} learning
+        </span>
       </div>
+
       <div className="flex gap-3 mt-6">
         <button
           onClick={onBack}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+          className="bg-indigo-600 text-white px-6 py-3 rounded-xl"
         >
           Back to Deck
         </button>
         <button
           onClick={onPracticeAgain}
-          className="border border-indigo-300 text-indigo-600 hover:bg-indigo-50 font-semibold px-6 py-3 rounded-xl transition-colors"
+          className="border border-indigo-300 text-indigo-600 px-6 py-3 rounded-xl"
         >
           Practice Again
         </button>
@@ -54,167 +63,147 @@ export default function PracticePage() {
   const deckId = params.deckId as string;
 
   const [deck, setDeck] = useState<Deck | null | undefined>(undefined);
-  // Single flat queue — "Again" cards get appended to the end
-  const [activeQueue, setActiveQueue] = useState<string[]>([]);
-  // How many cards were in the original queue (for progress display)
-  const [originalQueueLength, setOriginalQueueLength] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [queue, setQueue] = useState<string[]>([]);
+  const [originalLength, setOriginalLength] = useState(0);
+  const [index, setIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [reviewedCount, setReviewedCount] = useState(0);
-  const [sessionDone, setSessionDone] = useState(false);
+  const [reviewed, setReviewed] = useState(0);
+  const [done, setDone] = useState(false);
   const [isRating, setIsRating] = useState(false);
 
   const deckRef = useRef<Deck | null>(null);
 
+  // 🔄 Load deck
   function loadDeck() {
     const d = getDeckById(deckId);
     setDeck(d);
     deckRef.current = d;
+
     if (d) {
       const q = buildQueue(d.cards);
-      setActiveQueue(q);
-      setOriginalQueueLength(q.length);
-      setCurrentIndex(0);
+      setQueue(q);
+      setOriginalLength(q.length);
+      setIndex(0);
       setIsFlipped(false);
-      setReviewedCount(0);
-      setSessionDone(false);
+      setReviewed(0);
+      setDone(false);
     }
   }
 
   useEffect(() => {
     loadDeck();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId]);
 
-  if (deck === undefined) return null;
-
-  if (!deck) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <p className="text-gray-500 mb-4">Deck not found.</p>
-        <Link href="/" className="text-indigo-600 hover:underline font-medium">Back to Home</Link>
-      </div>
-    );
-  }
-
-  if (activeQueue.length === 0 && !sessionDone) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <div className="text-5xl mb-4" aria-hidden="true">✅</div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">Nothing due today!</h2>
-        <p className="text-gray-500 mb-6">Come back tomorrow to keep your streak going.</p>
-        <Link
-          href={`/deck/${deckId}`}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-        >
-          Back to Deck
-        </Link>
-      </div>
-    );
-  }
-
-  if (sessionDone) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <SessionComplete
-          reviewed={reviewedCount}
-          deck={deckRef.current!}
-          onBack={() => router.push(`/deck/${deckId}`)}
-          onPracticeAgain={loadDeck}
-        />
-      </div>
-    );
-  }
-
-  const currentCardId = activeQueue[currentIndex];
-  const currentCard: Flashcard | undefined = deck.cards.find(c => c.id === currentCardId);
-
-  // Progress shows position within the original queue (capped), not counting re-queued Again cards
-  const displayIndex = Math.min(currentIndex + 1, originalQueueLength);
-  const progressPct = (currentIndex / Math.max(activeQueue.length, 1)) * 100;
-
+  // 🔥 Flip
   function handleFlip() {
     setIsFlipped(true);
   }
 
+  // 🧠 Rating logic
   function handleRating(rating: Rating) {
-    if (!currentCard || isRating) return;
+    if (!deck || isRating) return;
+
+    const currentCardId = queue[index];
+    const card = deck.cards.find(c => c.id === currentCardId);
+    if (!card) return;
+
     setIsRating(true);
 
-    const updated = applyRating(currentCard, rating);
+    const updated = applyRating(card, rating);
     updateCard(deckId, updated);
 
-    // Keep deckRef in sync for SessionComplete stats
+    // update local state
     if (deckRef.current) {
       const idx = deckRef.current.cards.findIndex(c => c.id === updated.id);
       if (idx !== -1) {
-        deckRef.current = {
-          ...deckRef.current,
-          cards: [
-            ...deckRef.current.cards.slice(0, idx),
-            updated,
-            ...deckRef.current.cards.slice(idx + 1),
-          ],
-        };
+        deckRef.current.cards[idx] = updated;
       }
     }
 
-    const nextIndex = currentIndex + 1;
-
+    // 🔥 Again → repeat card
     if (rating === 0) {
-      // Append to end of queue so card is shown again later
-      setActiveQueue(q => [...q, currentCard.id]);
+      setQueue(q => [...q, card.id]);
     }
 
-    setReviewedCount(c => c + 1);
+    const nextIndex = index + 1;
+    setReviewed(r => r + 1);
 
-    // Check if done: nextIndex reaches the end of the (possibly extended) queue
-    // We must check after potentially appending, so read activeQueue length + 1 if Again
-    const newQueueLength = activeQueue.length + (rating === 0 ? 1 : 0);
-    if (nextIndex >= newQueueLength) {
-      setSessionDone(true);
+    if (nextIndex >= queue.length + (rating === 0 ? 1 : 0)) {
+      setDone(true);
     } else {
-      setCurrentIndex(nextIndex);
+      setIndex(nextIndex);
       setIsFlipped(false);
     }
 
     setIsRating(false);
   }
 
+  if (deck === undefined) return null;
+
+  if (!deck) {
+    return <div className="p-10 text-center">Deck not found</div>;
+  }
+
+  if (done) {
+    return (
+      <SessionComplete
+        reviewed={reviewed}
+        deck={deckRef.current!}
+        onBack={() => router.push(`/deck/${deckId}`)}
+        onPracticeAgain={loadDeck}
+      />
+    );
+  }
+
+  const currentCard = deck.cards.find(c => c.id === queue[index]);
+
+  const displayIndex = Math.min(index + 1, originalLength);
+  const progress = (index / Math.max(queue.length, 1)) * 100;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <Link href={`/deck/${deckId}`} className="text-gray-400 hover:text-gray-600 transition-colors text-sm">
+      <div className="flex justify-between mb-6">
+        <Link href={`/deck/${deckId}`} className="text-gray-400">
           ← Back
         </Link>
-        <span className="text-sm text-gray-500 font-medium">
-          Card {displayIndex} of {originalQueueLength}
+        <span className="text-sm text-gray-500">
+          Card {displayIndex} / {originalLength}
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div className="w-full bg-gray-200 rounded-full h-1.5 mb-6">
+      {/* Progress */}
+      <div className="w-full bg-gray-200 h-1.5 rounded mb-6">
         <div
-          className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300"
-          style={{ width: `${progressPct}%` }}
+          className="bg-indigo-500 h-1.5 rounded transition-all"
+          style={{ width: `${progress}%` }}
         />
       </div>
 
+      {/* Card */}
       {currentCard && (
         <>
-          <FlashCard card={currentCard} isFlipped={isFlipped} onFlip={handleFlip} />
+          <FlashCard
+            card={currentCard}
+            isFlipped={isFlipped}
+            onFlip={handleFlip}
+          />
 
+          {/* Controls */}
           <div className="mt-6">
-            {isFlipped ? (
-              <RatingButtons onRate={handleRating} isLoading={isRating} />
-            ) : (
+            {!isFlipped ? (
               <button
                 onClick={handleFlip}
-                className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 rounded-xl transition-colors"
+                className="w-full bg-indigo-600 text-white py-3 rounded-xl"
               >
                 Show Answer
               </button>
+            ) : (
+              <RatingButtons
+                onRate={handleRating}
+                isLoading={isRating}
+              />
             )}
           </div>
         </>

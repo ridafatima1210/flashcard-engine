@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function UploadZone({ onFile }: { onFile: (file: File) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -25,8 +25,9 @@ export default function UploadZone({ onFile }: { onFile: (file: File) => void })
     setError(null);
     setFile(file);
 
-    // fake loading (simulate AI processing)
     setLoading(true);
+
+    // simulate AI processing
     setTimeout(() => {
       setLoading(false);
       onFile(file);
@@ -39,9 +40,10 @@ export default function UploadZone({ onFile }: { onFile: (file: File) => void })
       animate={{ opacity: 1, y: 0 }}
       className="w-full"
     >
-
-      {/* 📦 MAIN BOX */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Upload PDF"
         onClick={() => !file && inputRef.current?.click()}
         onDragOver={e => {
           e.preventDefault();
@@ -63,7 +65,6 @@ export default function UploadZone({ onFile }: { onFile: (file: File) => void })
           ${drag ? 'scale-105 shadow-2xl border-indigo-500' : 'hover:scale-105 hover:shadow-2xl'}
         `}
       >
-
         {/* Hidden Input */}
         <input
           ref={inputRef}
@@ -76,72 +77,91 @@ export default function UploadZone({ onFile }: { onFile: (file: File) => void })
           }}
         />
 
-        {/* ✨ Glow */}
+        {/* Glow */}
         <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition bg-gradient-to-r from-indigo-200/20 to-pink-200/20" />
 
-        {/* 🧠 STATES */}
+        <AnimatePresence mode="wait">
 
-        {/* ✅ EMPTY STATE */}
-        {!file && !loading && (
-          <>
+          {/* EMPTY */}
+          {!file && !loading && (
             <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="text-6xl mb-6"
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center"
             >
-              📄
+              <motion.div
+                animate={{ y: [0, -6, 0] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="text-6xl mb-6"
+              >
+                📄
+              </motion.div>
+
+              <p className="text-xl font-semibold text-gray-800 dark:text-white mb-1">
+                Drop your PDF here
+              </p>
+
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                or click to upload (max 20MB)
+              </p>
             </motion.div>
+          )}
 
-            <p className="text-xl font-semibold text-gray-800 dark:text-white mb-1">
-              Drop your PDF here
-            </p>
-
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              or click to upload (max 20MB)
-            </p>
-          </>
-        )}
-
-        {/* ⏳ LOADING STATE */}
-        {loading && (
-          <div className="flex flex-col items-center">
+          {/* LOADING */}
+          {loading && (
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-              className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mb-4"
-            />
-            <p className="text-gray-600 dark:text-gray-300">
-              Processing your PDF...
-            </p>
-          </div>
-        )}
-
-        {/* 📄 FILE PREVIEW */}
-        {file && !loading && (
-          <div className="flex flex-col items-center text-center">
-
-            <div className="text-5xl mb-4">📄</div>
-
-            <p className="font-semibold text-gray-800 dark:text-white">
-              {file.name}
-            </p>
-
-            <p className="text-sm text-gray-500 mt-1">
-              {(file.size / 1024 / 1024).toFixed(2)} MB
-            </p>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setFile(null);
-              }}
-              className="mt-4 text-sm text-red-500 hover:underline"
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center"
             >
-              Remove file
-            </button>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mb-4"
+              />
 
-          </div>
-        )}
+              <p className="text-gray-600 dark:text-gray-300">
+                Generating flashcards...
+              </p>
+            </motion.div>
+          )}
+
+          {/* SUCCESS */}
+          {file && !loading && (
+            <motion.div
+              key="file"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center text-center"
+            >
+              <div className="text-5xl mb-4">✅</div>
+
+              <p className="font-semibold text-gray-800 dark:text-white">
+                {file.name}
+              </p>
+
+              <p className="text-sm text-gray-500 mt-1">
+                {(file.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFile(null);
+                }}
+                className="mt-4 text-sm text-red-500 hover:underline"
+              >
+                Remove file
+              </button>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
 
         {/* Drag Badge */}
         {drag && (
@@ -151,13 +171,12 @@ export default function UploadZone({ onFile }: { onFile: (file: File) => void })
         )}
       </div>
 
-      {/* ❌ Error */}
+      {/* Error */}
       {error && (
         <p className="text-red-500 text-sm mt-4 text-center">
           {error}
         </p>
       )}
-
     </motion.div>
   );
 }

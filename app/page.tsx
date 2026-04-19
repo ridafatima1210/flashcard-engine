@@ -20,6 +20,14 @@ export default function HomePage() {
     }
   }, []);
 
+  // 🔥 Aggregate stats
+  const totalDecks = decks.length;
+  const totalCards = decks.reduce((acc, d) => acc + d.cards.length, 0);
+  const totalDue = decks.reduce(
+    (acc, d) => acc + getDeckStats(d).due,
+    0
+  );
+
   /* 🎬 Animation Variants */
   const container = {
     hidden: {},
@@ -38,87 +46,91 @@ export default function HomePage() {
   return (
     <div className="max-w-6xl mx-auto">
 
-      {/* Header */}
-      {/* Header */}
-<motion.header
-  initial={{ opacity: 0 }}
-  animate={{ opacity: 1 }}
-  transition={{ duration: 0.4 }}
-  className="flex items-center justify-between mb-16"
->
-  <div>
+      {/* 🔥 HEADER */}
+      <motion.header
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-between mb-12"
+      >
+        <div>
 
-    {/* ✨ Gradient Animated Title */}
-    <motion.h1
-      initial={{ y: 20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="text-5xl font-extrabold tracking-tight 
-      bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
-      bg-clip-text text-transparent"
-    >
-      Flashcard Engine
-    </motion.h1>
+          <motion.h1
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="text-5xl font-extrabold tracking-tight 
+            bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
+            bg-clip-text text-transparent"
+          >
+            Flashcard Engine
+          </motion.h1>
 
-    {/* 💬 Main Tagline */}
-    <motion.p
-      initial={{ y: 10, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.2 }}
-      className="text-gray-600 dark:text-gray-300 mt-3 text-lg"
-    >
-      Turn your PDFs into{' '}
-      <span className="font-semibold text-indigo-500">
-        AI-powered flashcards
-      </span>{' '}
-      in seconds 
-    </motion.p>
+          <p className="text-gray-600 dark:text-gray-300 mt-3 text-lg">
+            Turn PDFs into{' '}
+            <span className="font-semibold text-indigo-500">
+              AI flashcards
+            </span>{' '}
+            instantly
+          </p>
 
-    {/* 🔥 Sub Tagline */}
-    <motion.p
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: 0.4 }}
-      className="text-sm text-gray-400 mt-1"
-    >
-      Smarter learning. Faster revision. Zero effort.
-    </motion.p>
+        </div>
 
-  </div>
-
-  {/* 🎬 Animated Button */}
-  <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
-    <Link
-      href="/upload"
-      className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
-      text-white px-6 py-2.5 rounded-xl font-medium 
-      shadow-lg hover:shadow-2xl transition-all duration-300"
-    >
-      + New Deck
-    </Link>
-  </motion.div>
-</motion.header>
-
-      {/* Error */}
-      {storageError && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="bg-yellow-50 border border-yellow-200 text-yellow-800 
-          rounded-xl px-4 py-3 mb-6 text-sm"
-        >
-          Storage unavailable — try disabling private browsing.
+        <motion.div whileHover={{ scale: 1.08 }}>
+          <Link
+            href="/upload"
+            className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
+            text-white px-6 py-2.5 rounded-xl font-medium shadow-lg"
+          >
+            + New Deck
+          </Link>
         </motion.div>
-      )}
+      </motion.header>
 
-      {/* Content */}
-      {decks.length === 0 ? (
+      {/* 🔥 TODAY PRACTICE (KEY FEATURE) */}
+      {totalDue > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-6 rounded-2xl 
+          bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-xl"
         >
-          <EmptyState />
+          <h2 className="text-xl font-semibold mb-1">
+            🔥 Today’s Practice
+          </h2>
+          <p className="text-sm opacity-90 mb-4">
+            You have {totalDue} cards due today
+          </p>
+
+          <Link
+            href={`/deck/${decks[0]?.id}/practice`}
+            className="bg-white text-indigo-600 px-4 py-2 rounded-lg font-medium text-sm"
+          >
+            Start Practicing →
+          </Link>
         </motion.div>
+      )}
+
+      {/* 📊 QUICK STATS */}
+      {decks.length > 0 && (
+        <div className="flex gap-6 text-sm text-gray-500 mb-6">
+          <span>📚 {totalDecks} decks</span>
+          <span>🧠 {totalCards} cards</span>
+          <span className="text-indigo-500 font-medium">
+            ⏰ {totalDue} due
+          </span>
+        </div>
+      )}
+
+      {/* Error */}
+      {storageError && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 
+        rounded-xl px-4 py-3 mb-6 text-sm">
+          Storage unavailable — try disabling private browsing.
+        </div>
+      )}
+
+      {/* CONTENT */}
+      {decks.length === 0 ? (
+        <EmptyState />
       ) : (
         <motion.div
           variants={container}
@@ -127,11 +139,7 @@ export default function HomePage() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {decks.map(deck => (
-            <motion.div
-              key={deck.id}
-              variants={item}
-              transition={{ duration: 0.3 }}
-            >
+            <motion.div key={deck.id} variants={item}>
               <DeckCard
                 deck={deck}
                 stats={getDeckStats(deck)}

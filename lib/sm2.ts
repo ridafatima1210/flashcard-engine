@@ -1,15 +1,19 @@
 import { Flashcard, Rating } from './types';
 
+/**
+ * Apply SM-2 spaced repetition algorithm
+ */
 export function applyRating(card: Flashcard, rating: Rating): Flashcard {
   let { easeFactor, interval, repetitions } = card;
 
   if (rating < 2) {
-    // Failed — reset streak
+    // ❌ Again / Hard → reset learning
     repetitions = 0;
     interval = 1;
-    // easeFactor unchanged on failure
   } else {
-    // Passed
+    // ✅ Correct answer
+
+    // Interval logic (SM-2)
     if (repetitions === 0) {
       interval = 1;
     } else if (repetitions === 1) {
@@ -17,12 +21,26 @@ export function applyRating(card: Flashcard, rating: Rating): Flashcard {
     } else {
       interval = Math.round(interval * easeFactor);
     }
-    // Update ease factor
-    easeFactor = easeFactor + 0.1 - (3 - rating) * (0.08 + (3 - rating) * 0.02);
+
+    // 🔥 IMPROVED REPETITION LOGIC
+    if (rating === 3) {
+      // Easy → faster mastery
+      repetitions += 2;
+    } else {
+      // Good
+      repetitions += 1;
+    }
+
+    // Update ease factor (SM-2 formula)
+    easeFactor =
+      easeFactor +
+      0.1 -
+      (3 - rating) * (0.08 + (3 - rating) * 0.02);
+
     easeFactor = Math.max(1.3, easeFactor);
-    repetitions += 1;
   }
 
+  // 📅 Next review date
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + interval);
 
@@ -36,18 +54,43 @@ export function applyRating(card: Flashcard, rating: Rating): Flashcard {
   };
 }
 
-// Builds the practice queue for a session.
-// Rules:
-// 1. Cards due today come first (sorted by dueDate ascending)
-// 2. New cards (repetitions === 0) come next (up to 20 new per session)
-// 3. Cards rated "Again" in this session go to the end of the queue (re-shown once)
+/**
+ * Build practice queue
+ *
+ * Rules:
+ * 1. Due cards first (sorted by due date)
+ * 2. New cards next (limit 20 per session)
+ * 3. "Again" cards will be re-added dynamically in session
+ */
 export function buildQueue(cards: Flashcard[]): string[] {
   const now = new Date();
+
+  // ⏰ Due cards
   const due = cards
     .filter(c => new Date(c.dueDate) <= now && c.repetitions > 0)
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.dueDate).getTime() -
+        new Date(b.dueDate).getTime()
+    );
+
+  // 🆕 New cards
   const newCards = cards
     .filter(c => c.repetitions === 0)
     .slice(0, 20);
-  return [...due, ...newCards].map(c => c.id);
+
+  let queue = [...due, ...newCards];
+
+  // 🔥 CRITICAL FIX: fallback if empty
+  if (queue.length === 0) {
+    queue = cards
+      .sort(
+        (a, b) =>
+          new Date(a.lastReviewed || 0).getTime() -
+          new Date(b.lastReviewed || 0).getTime()
+      )
+      .slice(0, 10);
+  }
+
+  return queue.map(c => c.id);
 }

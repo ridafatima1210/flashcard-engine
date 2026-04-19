@@ -1,7 +1,7 @@
 'use client';
 
 import { Flashcard } from '@/lib/types';
-import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 
 interface FlashCardProps {
   card: Flashcard;
@@ -10,42 +10,64 @@ interface FlashCardProps {
 }
 
 export default function FlashCard({ card, isFlipped, onFlip }: FlashCardProps) {
+
+  // ⌨️ Flip with spacebar
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        onFlip();
+      }
+    }
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onFlip]);
+
   return (
     <div
-      className="card-container w-full h-64 md:h-80 cursor-pointer group perspective"
-      onClick={isFlipped ? undefined : onFlip}
+      className="card-container w-full h-64 md:h-80 cursor-pointer group"
+      onClick={onFlip}
+      role="button"
+      aria-label="Flashcard - click to flip"
     >
-      <motion.div
-        className={`card-inner ${isFlipped ? 'flipped' : ''} relative w-full h-full`}
-        whileHover={{ scale: 1.02 }}
-        transition={{ duration: 0.2 }}
+      <div
+        className={`card-inner relative w-full h-full ${
+          isFlipped ? 'flipped' : ''
+        }`}
       >
-
-        {/* 🔥 Glow Layer */}
+        {/* ✨ Glow */}
         <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none bg-gradient-to-r from-indigo-200/20 to-pink-200/20"></div>
 
-        {/* Front */}
-        <div className="card-face bg-white/60 dark:bg-gray-900/60 backdrop-blur-xl rounded-2xl shadow-xl flex items-center justify-center p-8 border border-white/30 dark:border-gray-700">
+        {/* ================= FRONT ================= */}
+        <div className="card-face bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white rounded-2xl shadow-xl flex items-center justify-center p-8">
 
           <div className="text-center relative z-10">
-            <p className="text-xl md:text-2xl font-medium text-gray-800 dark:text-white leading-relaxed">
+            <p className="text-xs uppercase tracking-wider opacity-70 mb-3">
+              Question
+            </p>
+
+            <p className="text-xl md:text-2xl font-semibold leading-relaxed">
               {card.front}
             </p>
 
-            {/* Hint to flip */}
             {!isFlipped && (
-              <p className="text-xs text-gray-400 mt-4">
-                Click to reveal answer
+              <p className="text-xs text-white/70 mt-6 animate-pulse">
+                Click or press SPACE to reveal answer
               </p>
             )}
           </div>
 
         </div>
 
-        {/* Back */}
-        <div className="card-face card-back-face bg-indigo-100/60 dark:bg-indigo-900/40 backdrop-blur-xl rounded-2xl shadow-xl flex flex-col items-center justify-between p-8 border border-white/30 dark:border-gray-700">
+        {/* ================= BACK ================= */}
+        <div className="card-face card-back-face bg-white dark:bg-gray-900 rounded-2xl shadow-xl flex flex-col items-center justify-between p-8 border border-gray-200 dark:border-gray-700">
 
-          <div className="flex-1 flex items-center justify-center text-center relative z-10">
+          <div className="text-center relative z-10 flex-1 flex flex-col justify-center">
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+              Answer
+            </p>
+
             <p className="text-lg md:text-xl text-gray-800 dark:text-white leading-relaxed">
               {card.back}
             </p>
@@ -56,9 +78,13 @@ export default function FlashCard({ card, isFlipped, onFlip }: FlashCardProps) {
               Hint: {card.hint}
             </p>
           )}
-        </div>
 
-      </motion.div>
+          <p className="text-xs text-gray-400 mt-4">
+            Click or press SPACE to flip back
+          </p>
+
+        </div>
+      </div>
     </div>
   );
 }

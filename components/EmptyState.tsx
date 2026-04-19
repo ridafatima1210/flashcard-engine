@@ -20,39 +20,50 @@ export default function EmptyState() {
         {/* 🌈 Glow Effect */}
         <div className="absolute inset-0 rounded-3xl opacity-0 hover:opacity-100 transition duration-500 pointer-events-none bg-gradient-to-r from-indigo-200/20 to-pink-200/20"></div>
 
-        {/* 📚 Icon */}
+        {/* 📚 Animated Icon */}
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
           className="text-6xl mb-6"
         >
           📚
         </motion.div>
 
-        {/* Heading */}
+        {/* 🔥 Heading */}
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
-          No decks yet
+          Start Your Learning Journey 
         </h2>
 
-        {/* Description */}
-        <p className="text-gray-600 dark:text-gray-400 text-sm mb-8 leading-relaxed">
-          Upload a PDF and let AI generate a smart flashcard deck for you.
-          <br />
-          Start learning in seconds.
+        {/* 🧠 Description */}
+        <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 leading-relaxed">
+          Upload any PDF and instantly turn it into smart flashcards powered by AI.
         </p>
 
-        {/* CTA Button */}
+        {/* 🎯 Steps */}
+        <div className="text-xs text-gray-400 mb-8 space-y-1">
+          <p>Upload PDF</p>
+          <p>AI generates flashcards</p>
+          <p>Practice with spaced repetition</p>
+        </div>
+
+        {/* 🚀 CTA */}
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Link
             href="/upload"
             className="inline-block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
-            text-white font-semibold px-7 py-3 rounded-xl 
+            text-white font-semibold px-8 py-3 rounded-xl 
             shadow-lg hover:shadow-2xl transition-all duration-300"
           >
-            + Upload your first PDF
+            Create your first deck
           </Link>
         </motion.div>
+
+        {/* 💡 Features hint */}
+        <div className="flex justify-center gap-6 mt-8 text-xs text-gray-400">
+          <span>Smart repetition</span>
+          <span>Instant cards</span>
+          <span>Track progress</span>
+        </div>
 
       </motion.div>
     </div>
